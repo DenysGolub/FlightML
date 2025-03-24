@@ -1,0 +1,26 @@
+[[pages]]
+path = "pages/dashboard.py"
+name = "Головна"
+icon = "📄"
+
+[[pages]]
+path = "pages/data.py"
+name = "Датасети"
+
+[[pages]]
+path = "pages/exp_page.py"
+name = "Експеримент"
+
+
+[[pages]]
+path = "pages/testing.py"
+name = "Тестування"
+
+[[pages]]
+path = "pages/docs.py"
+name = "Документація"
+
+[[pages]]
+path = "pages/settings.py"
+name = "Налаштування"
+
