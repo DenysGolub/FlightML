@@ -66,7 +66,6 @@ class DataBase:
                     "model_id" INTEGER NOT NULL,
                     FOREIGN KEY("experiment_history_id") REFERENCES "experiments_history"("id") ON DELETE CASCADE,
                     FOREIGN KEY("model_id") REFERENCES "models"("id") ON DELETE CASCADE
-
                 );
             ''',
             "model_hyperparameters": '''
@@ -74,17 +73,26 @@ class DataBase:
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "experiment_models_id" INTEGER NOT NULL,
                     "params" TEXT NOT NULL,
-                    FOREIGN KEY("experiment_models_id") REFERENCES "experiment_models"("id")
-                    ON DELETE CASCADE
+                    FOREIGN KEY("experiment_models_id") REFERENCES "experiment_models"("id") ON DELETE CASCADE
+                );
+            ''',
+            "datasets": '''
+                CREATE TABLE "datasets" (
+                    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+                    "name" TEXT NOT NULL UNIQUE,
+                    "path_to_data" TEXT NOT NULL,
+                    "description" TEXT,
+                    "data_type" TEXT,
+                    "created_at" DATE NOT NULL
                 );
             ''',
             "experiment_data": '''
                 CREATE TABLE "experiment_data" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "experiment_version_id" INTEGER NOT NULL,
-                    "path_to_data" VARCHAR(255),
-                    FOREIGN KEY("experiment_version_id") REFERENCES "experiments_history"("id")
-                    ON DELETE CASCADE
+                    "dataset_id" INTEGER NOT NULL,
+                    FOREIGN KEY("experiment_version_id") REFERENCES "experiments_history"("id") ON DELETE CASCADE,
+                    FOREIGN KEY("dataset_id") REFERENCES "datasets"("id") ON DELETE CASCADE
                 );
             '''
         }

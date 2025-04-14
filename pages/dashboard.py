@@ -51,7 +51,7 @@ def search_experiment(name):
 def edit_experiment(name):
     pass
 @st.dialog(title='Ви впевнені?', )
-def delete_experiment(name, folder_path):
+def delete_experiment(name):
     st.warning('Дія є незворотньою.\nЕксперимент видалиться без можливості відновлення.')
     padding1, col1,  col2, padding2 = st.columns([2,1,1,2], vertical_alignment='bottom')
     with col1: 
@@ -105,16 +105,14 @@ current_col = 0
 row = st.columns(max_cols)
 
 for i in range(0, len(experiments), max_cols):
-    row = st.columns(max_cols)  # Create a new row
-    for j, exp in enumerate(experiments[i:i+max_cols]):  # Fill row with experiments
+    row = st.columns(max_cols)  
+    for j, exp in enumerate(experiments[i:i+max_cols]):  
         with row[j]:  
             with st.container(border=True):
-                # Experiment Name
                 st.markdown(f"**{exp[1]}**")
-                st.caption(f"{exp[5]}")  # Optional small text for extra details
+                st.caption(f"{exp[5]}") 
 
-                # Buttons Row (Inline)
-                btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])  # Adjust width ratios
+                btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])  
                 with btn_col1:
                     st.button("🔍", key=f"view_{i}_{j}", help='Переглянути', use_container_width=True, on_click=redirect_to_experiment_page, args=[exp[1], exp[0]])
                 with btn_col2:

@@ -61,11 +61,13 @@ else:
 
     data, info, eda = st.tabs(['Дані', 'Загальні відомості', 'EDA'])
     
-    data.file_uploader('Завантажити файл')
+    file_upload = data.file_uploader('Завантажити файл')
     
+    if file_upload is not None:
+        eda.dataframe(pd.read_csv(file_upload))
     
     
     eda.write('Exploratory Data Analysis')
-    eda.dataframe(pd.DataFrame([12, 124]))
+    # eda.dataframe(pd.DataFrame([12, 124]))
     
         
