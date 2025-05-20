@@ -17,7 +17,7 @@ class DataBase:
     def create_initial_db(self):
         queries = {
             "experiments": '''
-                CREATE TABLE "experiments" (
+                CREATE TABLE IF NOT EXISTS "experiments" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "name" TEXT NOT NULL UNIQUE,
                     "folder_path" TEXT NOT NULL,
@@ -26,58 +26,54 @@ class DataBase:
                     "comment" TEXT NOT NULL
                 );
             ''',
-            "models": '''
-                CREATE TABLE "models" (
-                    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-                    "name" VARCHAR(255) NOT NULL
-                );
-            ''',
+
             "experiments_history": '''
-                CREATE TABLE "experiments_history" (
+                CREATE TABLE IF NOT EXISTS "experiments_history" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "experiment_id" INTEGER NOT NULL,
                     "experiment_version" INTEGER NOT NULL UNIQUE,
                     FOREIGN KEY("experiment_id") REFERENCES "experiments"("id") ON DELETE CASCADE
                 );
             ''',
-            "experiment_results": '''
-                CREATE TABLE "experiment_results" (
-                    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-                    "experiment_history_id" INTEGER NOT NULL,
-                    "metric_id" INTEGER NOT NULL,
-                    "metric_result" FLOAT NOT NULL,
-                    "created_at" DATE NOT NULL,
-                    FOREIGN KEY("experiment_history_id") REFERENCES "experiments_history"("id"),
-                    FOREIGN KEY("metric_id") REFERENCES "metrics"("id")
-                );
-            ''',
+
             "metrics": '''
-                CREATE TABLE "metrics" (
+                CREATE TABLE IF NOT EXISTS "metrics" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-                    "name_full" VARCHAR(255) NOT NULL,
-                    "name_short" VARCHAR(255) NOT NULL,
-                    "description" TEXT NOT NULL
+                    "name" TEXT NOT NULL UNIQUE
                 );
             ''',
-            "experiment_models": '''
-                CREATE TABLE "experiment_models" (
+
+            "experiment_metrics": '''
+                CREATE TABLE IF NOT EXISTS "experiment_metrics" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+                    "metric_id" INTEGER NOT NULL,
+                    "metric_value" REAL NOT NULL,
                     "experiment_history_id" INTEGER NOT NULL,
-                    "model_id" INTEGER NOT NULL,
-                    FOREIGN KEY("experiment_history_id") REFERENCES "experiments_history"("id") ON DELETE CASCADE,
-                    FOREIGN KEY("model_id") REFERENCES "models"("id") ON DELETE CASCADE
+                    FOREIGN KEY("metric_id") REFERENCES "metrics"("id") ON DELETE CASCADE,
+                    FOREIGN KEY("experiment_history_id") REFERENCES "experiments_history"("id") ON DELETE CASCADE
                 );
             ''',
-            "model_hyperparameters": '''
-                CREATE TABLE "model_hyperparameters" (
+
+            "params": '''
+                CREATE TABLE IF NOT EXISTS "params" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-                    "experiment_models_id" INTEGER NOT NULL,
-                    "params" TEXT NOT NULL,
-                    FOREIGN KEY("experiment_models_id") REFERENCES "experiment_models"("id") ON DELETE CASCADE
+                    "name" TEXT NOT NULL UNIQUE
                 );
             ''',
+
+            "experiment_params": '''
+                CREATE TABLE IF NOT EXISTS "experiment_params" (
+                    "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+                    "param_id" INTEGER NOT NULL,
+                    "param_value" TEXT NOT NULL,
+                    "experiment_history_id" INTEGER NOT NULL,
+                    FOREIGN KEY("param_id") REFERENCES "params"("id") ON DELETE CASCADE,
+                    FOREIGN KEY("experiment_history_id") REFERENCES "experiments_history"("id") ON DELETE CASCADE
+                );
+            ''',
+
             "datasets": '''
-                CREATE TABLE "datasets" (
+                CREATE TABLE IF NOT EXISTS "datasets" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "name" TEXT NOT NULL UNIQUE,
                     "path_to_data" TEXT NOT NULL,
@@ -86,10 +82,11 @@ class DataBase:
                     "created_at" DATE NOT NULL
                 );
             ''',
+
             "experiment_data": '''
-                CREATE TABLE "experiment_data" (
+                CREATE TABLE IF NOT EXISTS "experiment_data" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-                    "experiment_version_id" INTEGER NOT NULL,
+                    "experiment_version_id" INTEGER NOT NULL UNIQUE,
                     "dataset_id" INTEGER NOT NULL,
                     FOREIGN KEY("experiment_version_id") REFERENCES "experiments_history"("id") ON DELETE CASCADE,
                     FOREIGN KEY("dataset_id") REFERENCES "datasets"("id") ON DELETE CASCADE
@@ -97,13 +94,13 @@ class DataBase:
             '''
         }
 
-        for key, values in queries.items():
-            conn = sqlite3.connect(self.path_to_db)
-
-            conn.execute(values)
-
-            conn.commit()
-            conn.close()
+        import sqlite3
+        conn = sqlite3.connect(self.path_to_db)
+        cursor = conn.cursor()
+        for table, query in queries.items():
+            cursor.execute(query)
+        conn.commit()
+        conn.close()
 
 
     def run_query_params(self, query, params):

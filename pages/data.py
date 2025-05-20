@@ -1,10 +1,65 @@
 import streamlit as st
-from helpers import database as db
+from helpers.database import DataBase
 from st_keyup import st_keyup
+import pandas as pd
 import shutil
-st.file_uploader("Завантажте датасет")
+import datetime
+import os
 
-def search_experiment(name):
+st.title("Датасети")
+
+db = DataBase()
+
+
+
+
+def create_dirs(experiment_name):
+    # Створюємо директорію для експерименту за шаблоном experiments/<назва>
+    base_dir = "datasets"
+    experiment_path = os.path.join(base_dir, experiment_name)
+    os.makedirs(experiment_path, exist_ok=True)
+    return experiment_path  # повертаємо шлях для використання далі
+
+def insert_experiment_to_db(name, path_to_file, comment=""):
+    created_at = datetime.datetime.now().strftime("%Y-%m-%d")
+    edited_at = created_at
+
+    query = """
+    INSERT INTO datasets (name, path_to_data, description, data_type, created_at)
+    VALUES (?, ?, ?, ?, ?)
+    """
+    params = (name, path_to_file, comment, "csv", created_at)
+    db.run_query_params(query, params)
+
+@st.dialog('Новий датасет')
+def add_experiment():
+    name_dataset = st.text_input(label="Введіть назву датасету")
+    file_upload = st.file_uploader("Завантажте датасет (CSV)", type=["csv"])
+    comment = st.text_area("Коментар до датасету")
+
+    if st.button('Створити') and file_upload is not None and name_dataset.strip():
+        # 1. Створення директорії для цього датасету
+        dir_path = os.path.join("datasets", name_dataset)
+        os.makedirs(dir_path, exist_ok=True)
+
+        # 2. Повний шлях до файлу, який збережеться
+        file_path = os.path.join(dir_path, file_upload.name)
+
+        # 3. Зберегти файл
+        with open(file_path, "wb") as f:
+            f.write(file_upload.getbuffer())
+
+        # 4. Інсерт у БД з повним шляхом до CSV
+        insert_experiment_to_db(name_dataset, file_path, comment)
+
+        st.success("✅ Датасет успішно створено")
+        st.rerun()
+
+
+if(st.button('Додати датасет')):
+    add_experiment()
+
+def search_dataset(name):
     filtered = db.run_query(f'SELECT * FROM datasets WHERE name LIKE "%{name}%"')
     # st.write(12)
     # st.write(filtered)
@@ -13,10 +68,12 @@ def search_experiment(name):
 search_text = st_keyup('Назва датасету')
 
 
-def edit_experiment(name):
+def edit_dataset(name):
     pass
+
+
 @st.dialog(title='Ви впевнені?', )
-def delete_experiment(name):
+def delete_dataset(name):
     st.warning('Дія є незворотньою.\nДатасет видалиться без можливості відновлення.')
     padding1, col1,  col2, padding2 = st.columns([2,1,1,2], vertical_alignment='bottom')
     with col1: 
@@ -29,30 +86,70 @@ def delete_experiment(name):
         if st.button('Ні'):
             st.rerun()
 
+def redirect_to_dataset_page(dataset_id: int, experiment_version_id: int):
+    st.session_state["modal_dataset_id"] = dataset_id
+    st.session_state["modal_experiment_version_id"] = experiment_version_id
+    
+    
+
+def get_dataset_by_id(dataset_id: int):
+    query = f"""
+    SELECT id, name, path_to_data, description, data_type, created_at
+    FROM datasets
+    WHERE id = {dataset_id}
+    """
+    result = db.run_query(query)
+    print(result)
+    return result
+    
+    
+def show_dataset_modal():
+    dataset_id = st.session_state.get("modal_dataset_id")
+    if not dataset_id:
+        return
+
+    dataset = get_dataset_by_id(dataset_id)
+    
+    with st.container():
+
+        if dataset[0][2].endswith(".csv"):
+            try:
+                df = pd.read_csv(dataset[0][2])
+                print(df)
+                st.dataframe(df.head(20))
+            except Exception as e:
+                st.error(f"⚠️ Помилка при завантаженні CSV: {e}")
+        
+        if st.button("❌ Закрити", key="close_modal"):
+            st.session_state["modal_dataset_id"] = None
+            st.session_state["modal_experiment_version_id"] = None
+            st.rerun()
+
+def redirect_to_dataset_page(dataset_id: int):
+    st.session_state["modal_dataset_id"] = dataset_id
 
 
-experiments = search_experiment(search_text)
+
+datasets = search_dataset(search_text)
 max_cols = 5
 current_col = 0
 row = st.columns(max_cols)
 
-for i in range(0, len(experiments), max_cols):
+for i in range(0, len(datasets), max_cols):
     row = st.columns(max_cols)  
-    for j, exp in enumerate(experiments[i:i+max_cols]):  
+    for j, exp in enumerate(datasets[i:i+max_cols]):  
         with row[j]:  
             with st.container(border=True):
-                st.markdown(f"**{exp[1]}**")
-                st.caption(f"{exp[5]}") 
+                st.markdown(f"**{exp[1]}**")  # exp[1] = name
+                st.caption(f"{exp[5]}")       # exp[5] = created_at
 
                 btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])  
                 with btn_col1:
-                    st.button("🔍", key=f"view_{i}_{j}", help='Переглянути', use_container_width=True, on_click=redirect_to_experiment_page, args=[exp[1], exp[0]])
+                    st.button("🔍", key=f"view_{i}_{j}", help='Переглянути', use_container_width=True, on_click=redirect_to_dataset_page, args=[exp[0]])  # exp[0] = id
                 with btn_col2:
-                    st.button("🖊️", key=f"edit_{i}_{j}", help="Змінити", use_container_width=True, on_click = edit_experiment, args=[exp[0]])
+                    st.button("🖊️", key=f"edit_{i}_{j}", help="Змінити", use_container_width=True, on_click=edit_dataset, args=[exp[0]])
                 with btn_col3:
-                    st.button("🗑️", key=f"del_{i}_{j}", help="Видалити", on_click=delete_experiment, args=[exp[1], exp[2]], use_container_width=True)
-                    
-                    
-                    
-                    
+                    st.button("🗑️", key=f"del_{i}_{j}", help="Видалити", on_click=delete_dataset, args=[exp[1]], use_container_width=True)
 
+                if st.session_state.get("modal_dataset_id") == exp[0]:
+                    show_dataset_modal()

@@ -73,7 +73,7 @@ cot = st.container()
 cot.title('Головна')
 
 @st.dialog('Новий експеримент')
-def add_experiment(item):
+def add_experiment():
     name = st.text_input(label='Назва')
     comment = st.text_input(label='Коментар')
     if st.button('Створити'):
@@ -85,7 +85,7 @@ def add_experiment(item):
 
 
 if(st.button('Додати експеримент')):
-    add_experiment('Додати експеримент')
+    add_experiment()
 
 
 def redirect_to_experiment_page(name_exp, id_exp):
@@ -96,7 +96,7 @@ def redirect_to_experiment_page(name_exp, id_exp):
 if "selected_exp" in st.session_state and st.session_state.selected_exp is not None:
     st.switch_page('pages/exp_page.py')
     
-search_text = st_keyup('Назва експерименту')
+search_text = st_keyup('Пошук за назвою експерименту')
 
 
 experiments = search_experiment(search_text)
@@ -118,7 +118,7 @@ for i in range(0, len(experiments), max_cols):
                 with btn_col2:
                     st.button("🖊️", key=f"edit_{i}_{j}", help="Змінити", use_container_width=True, on_click = edit_experiment, args=[exp[0]])
                 with btn_col3:
-                    st.button("🗑️", key=f"del_{i}_{j}", help="Видалити", on_click=delete_experiment, args=[exp[1], exp[2]], use_container_width=True)
+                    st.button("🗑️", key=f"del_{i}_{j}", help="Видалити", on_click=delete_experiment, args=[exp[1]], use_container_width=True)
                     
                     
                     
