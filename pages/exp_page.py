@@ -363,7 +363,6 @@ with info:
         rem_m = set(metric_data) - set(metric_values)
         remove_items_from_db(rem_p, rem_m, experiment_history_id)
 
-        # Далі для кожної пари (name, value) робимо get_or_create + insert/update
         for name, val in param_values.items():
             pid = get_or_create_param_id(name)
             if db.run_query_params("SELECT 1 FROM experiment_params WHERE experiment_history_id=? AND param_id=?", (experiment_history_id, pid)):

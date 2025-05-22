@@ -31,7 +31,7 @@ class DataBase:
                 CREATE TABLE IF NOT EXISTS "experiments_history" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "experiment_id" INTEGER NOT NULL,
-                    "experiment_version" INTEGER NOT NULL UNIQUE,
+                    "experiment_version" TEXT NOT NULL UNIQUE,
                     FOREIGN KEY("experiment_id") REFERENCES "experiments"("id") ON DELETE CASCADE
                 );
             ''',
@@ -65,7 +65,7 @@ class DataBase:
                 CREATE TABLE IF NOT EXISTS "experiment_params" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "param_id" INTEGER NOT NULL,
-                    "param_value" TEXT NOT NULL,
+                    "param_value" REAL NOT NULL,
                     "experiment_history_id" INTEGER NOT NULL,
                     FOREIGN KEY("param_id") REFERENCES "params"("id") ON DELETE CASCADE,
                     FOREIGN KEY("experiment_history_id") REFERENCES "experiments_history"("id") ON DELETE CASCADE
