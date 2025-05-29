@@ -1,13 +1,14 @@
 import streamlit as st
 import pandas as pd
 import seaborn as sns
+import time
 import matplotlib.pyplot as plt
 from helpers.database import DataBase
 import json
 from datetime import datetime
+import plotly.express as px
 
 
-# Ініціалізація бази
 db = DataBase()
 ds_id = 0
 
@@ -39,7 +40,6 @@ def get_or_create_metric_id(name):
 
 
 def remove_items_from_db(removed_param_names: set, removed_metric_names: set, experiment_history_id):
-    # Видаляємо параметри
     for param_name in removed_param_names:
         param_id = get_or_create_param_id(param_name)
         db.run_query_params("""
@@ -47,7 +47,6 @@ def remove_items_from_db(removed_param_names: set, removed_metric_names: set, ex
             WHERE experiment_history_id = ? AND param_id = ?
         """, (experiment_history_id, param_id))
 
-    # Видаляємо метрики
     for metric_name in removed_metric_names:
         metric_id = get_or_create_metric_id(metric_name)
         db.run_query_params("""
@@ -58,7 +57,7 @@ def remove_items_from_db(removed_param_names: set, removed_metric_names: set, ex
 
 st.title(f"Експеримент: {st.session_state.selected_exp}")
 
-# --- Версії ---
+# Версії
 query_versions = '''SELECT experiment_version FROM experiments_history WHERE experiment_id = ?'''
 results = db.run_query_params(query_versions, (st.session_state.selected_exp_id,))
 versions = [result[0] for result in results]
@@ -72,7 +71,8 @@ st.markdown("Додайте нову версію експерименту аб�
 with st.container(border=True):
     col1, col2 = st.columns([3, 1])
     version_input = col1.text_input("Назва нової версії", key="vers_input", placeholder="v1.0, baseline, tuned_model")
-
+    with col2:
+        st.markdown("<br>", unsafe_allow_html=True)
     if col2.button("➕ Додати версію"):
         version = version_input.strip()
         if version:
@@ -89,7 +89,7 @@ with st.container(border=True):
 
             except Exception as e:
                 if "UNIQUE constraint failed" in str(e):
-                    st.warning("⚠️ Така версія вже існує.")
+                    st.warning("⚠️ Така версія вже існує в БД. Ім'я версії повинно бути унікальним для всіх експериментів.")
                 else:
                     st.error(f"❌ Помилка: {e}")
         else:
@@ -98,7 +98,7 @@ with st.container(border=True):
 
 data, eda, info = st.tabs(['📄 Дані', '🔬 EDA', '⚙️ Конфігурація та результати'])
 
-# === Вибір версії експерименту (глобально для всіх табів) ===
+# Вибір версії експерименту
 with st.sidebar:
     st.markdown("### 🔢 Вибір версії експерименту")
     versions = [row[0] for row in db.run_query_params(
@@ -107,7 +107,7 @@ with st.sidebar:
     )]
     selected_version = st.selectbox("Оберіть версію:", options=versions)
 
-# === 📄 Дані ===
+# Дані
 with data:
     st.subheader("📎 Прив’язка датасету до версії експерименту")
 
@@ -160,7 +160,7 @@ with data:
         else:
             st.error("❌ Не вдалося знайти ID обраної версії експерименту.")
 
-# === 🔬 EDA ===
+# EDA
 with eda:
     st.subheader("📊 Автоматичний аналіз")
     if ds_id is not None:
@@ -195,8 +195,7 @@ with eda:
                 num_cols = df.select_dtypes(include='number').columns
                 cat_cols = df.select_dtypes(include='object').columns
 
-                import plotly.express as px
-
+        
                 if len(num_cols) > 0:
                     with st.expander("📊 Розподіли числових колонок", expanded=False):
                         for col in num_cols:
@@ -224,7 +223,7 @@ with eda:
     else:
         st.warning("Цей датасет не має шляху до CSV або не вибрано датасет.")
 
-# === ⚙️ Конфігурація та результати ===
+# Конфігурація
 with info:
     st.subheader("⚙️ Конфігурація та результати")
 
@@ -263,8 +262,65 @@ with info:
 
     param_values = st.session_state.param_values
     metric_values = st.session_state.metric_values
+    
+    st.markdown("### 📥 Імпорт з JSON")
 
-    # === Параметри ===
+    with st.expander("🔽 Завантажити з файлів"):
+        param_file = st.file_uploader("Завантаж файл параметрів (params.json)", type=["json"], key="param_file")
+        metric_file = st.file_uploader("Завантаж файл метрик (metrics.json)", type=["json"], key="metric_file")
+
+        if st.button("📤 Імпортувати з файлів"):
+            if param_file:
+                try:
+                    params_json = json.load(param_file)
+                    for k, v in params_json.items():
+                        st.session_state.param_values[k] = str(v)
+                    st.success("✅ Параметри імпортовано!")
+                    time.sleep(1)
+                except Exception as e:
+                    st.error(f"❌ Помилка у файлі параметрів: {e}")
+                    time.sleep(1)
+            
+            if metric_file:
+                try:
+                    metrics_json = json.load(metric_file)
+                    for k, v in metrics_json.items():
+                        st.session_state.metric_values[k] = float(v)
+                    st.success("✅ Метрики імпортовано!")
+                except Exception as e:
+                    st.error(f"❌ Помилка у файлі метрик: {e}")
+            st.rerun()
+
+    with st.expander("📝 Вставити JSON вручну"):
+        param_text = st.text_area("Встав JSON для параметрів", height=150, key="param_text")
+        metric_text = st.text_area("Встав JSON для метрик", height=150, key="metric_text")
+
+        if st.button("📥 Імпортувати з тексту"):
+            if param_text:
+                try:
+                    params_json = json.loads(param_text)
+                    for k, v in params_json.items():
+                        st.session_state.param_values[k] = str(v)
+                    st.success("✅ Параметри імпортовано з тексту!")
+                    time.sleep(1)
+                except Exception as e:
+                    st.error(f"❌ Помилка у тексті параметрів: {e}")
+                    time.sleep(1)
+
+            if metric_text:
+                try:
+                    metrics_json = json.loads(metric_text)
+                    for k, v in metrics_json.items():
+                        st.session_state.metric_values[k] = float(v)
+                    st.success("✅ Метрики імпортовано з тексту!")
+                    time.sleep(1)
+                except Exception as e:
+                    st.error(f"❌ Помилка у тексті метрик: {e}")
+                    time.sleep(1)
+            st.rerun()
+
+
+    # Параметри
     st.markdown("### 🛠️ Гіперпараметри")
 
     for idx, old_name in enumerate(list(param_values.keys())):
@@ -309,7 +365,7 @@ with info:
         param_values[""] = ""
         st.rerun()
 
-    # === Метрики ===
+    # Метрики
     st.markdown("### 📊 Результати експерименту")
 
     for idx, old_name in enumerate(list(metric_values.keys())):
@@ -357,7 +413,7 @@ with info:
         metric_values[""] = 0.0
         st.rerun()
 
-    # --- Збереження в БД ---
+    # Збереження в БД
     if st.button("💾 Зберегти конфігурацію та результати"):
         rem_p = set(params_data) - set(param_values)
         rem_m = set(metric_data) - set(metric_values)
@@ -378,6 +434,25 @@ with info:
                 db.run_query_params("INSERT INTO experiment_metrics (experiment_history_id,metric_id,metric_value) VALUES (?,?,?)", (experiment_history_id, mid, val))
 
         st.success("✅ Збережено!")
-        import time
         time.sleep(1)
         st.rerun()
+        
+    st.markdown("### 📥 Експорт в JSON")
+
+    param_json_str = json.dumps(param_values, indent=4)
+    st.download_button(
+        label="📤 Експортувати параметри (JSON)",
+        data=param_json_str,
+        file_name="params.json",
+        mime="application/json"
+    )
+
+    # Експорт метрик
+    metric_json_str = json.dumps(metric_values, indent=4)
+    st.download_button(
+        label="📤 Експортувати метрики (JSON)",
+        data=metric_json_str,
+        file_name="metrics.json",
+        mime="application/json"
+    )
+

@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import os
+import pandas as pd
 class DataBase:
     def __init__(self):
         config_path = os.path.abspath("config.json")
@@ -65,7 +66,7 @@ class DataBase:
                 CREATE TABLE IF NOT EXISTS "experiment_params" (
                     "id" INTEGER PRIMARY KEY AUTOINCREMENT,
                     "param_id" INTEGER NOT NULL,
-                    "param_value" REAL NOT NULL,
+                    "param_value" TEXT NOT NULL,
                     "experiment_history_id" INTEGER NOT NULL,
                     FOREIGN KEY("param_id") REFERENCES "params"("id") ON DELETE CASCADE,
                     FOREIGN KEY("experiment_history_id") REFERENCES "experiments_history"("id") ON DELETE CASCADE
@@ -93,15 +94,25 @@ class DataBase:
                 );
             '''
         }
+        
+        
 
         import sqlite3
         conn = sqlite3.connect(self.path_to_db)
         cursor = conn.cursor()
+        cursor.execute("PRAGMA foreign_keys = ON;")
         for table, query in queries.items():
             cursor.execute(query)
         conn.commit()
         conn.close()
 
+    def run_query_with_column_names(self, query):
+        conn = sqlite3.connect(self.path_to_db) 
+        cursor = conn.cursor()
+        cursor.execute(query)
+        data = cursor.fetchall()
+        column_names = [description[0] for description in cursor.description]
+        return pd.DataFrame(data, columns=column_names)
 
     def run_query_params(self, query, params):
         conn = sqlite3.connect(self.path_to_db)

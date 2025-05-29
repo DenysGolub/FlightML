@@ -10,15 +10,11 @@ st.title("Датасети")
 
 db = DataBase()
 
-
-
-
 def create_dirs(experiment_name):
-    # Створюємо директорію для експерименту за шаблоном experiments/<назва>
     base_dir = "datasets"
     experiment_path = os.path.join(base_dir, experiment_name)
     os.makedirs(experiment_path, exist_ok=True)
-    return experiment_path  # повертаємо шлях для використання далі
+    return experiment_path 
 
 def insert_experiment_to_db(name, path_to_file, comment=""):
     created_at = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -38,18 +34,14 @@ def add_experiment():
     comment = st.text_area("Коментар до датасету")
 
     if st.button('Створити') and file_upload is not None and name_dataset.strip():
-        # 1. Створення директорії для цього датасету
         dir_path = os.path.join("datasets", name_dataset)
         os.makedirs(dir_path, exist_ok=True)
 
-        # 2. Повний шлях до файлу, який збережеться
         file_path = os.path.join(dir_path, file_upload.name)
 
-        # 3. Зберегти файл
         with open(file_path, "wb") as f:
             f.write(file_upload.getbuffer())
 
-        # 4. Інсерт у БД з повним шляхом до CSV
         insert_experiment_to_db(name_dataset, file_path, comment)
 
         st.success("✅ Датасет успішно створено")
@@ -61,8 +53,6 @@ if(st.button('Додати датасет')):
 
 def search_dataset(name):
     filtered = db.run_query(f'SELECT * FROM datasets WHERE name LIKE "%{name}%"')
-    # st.write(12)
-    # st.write(filtered)
     return filtered
 
 search_text = st_keyup('Назва датасету')
@@ -141,7 +131,7 @@ for i in range(0, len(datasets), max_cols):
         with row[j]:  
             with st.container(border=True):
                 st.markdown(f"**{exp[1]}**")  # exp[1] = name
-                st.caption(f"{exp[5]}")       # exp[5] = created_at
+                st.caption(f"{exp[3]}")       # exp[5] = created_at
 
                 btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])  
                 with btn_col1:

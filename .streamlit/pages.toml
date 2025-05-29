@@ -6,21 +6,25 @@ icon = "📄"
 [[pages]]
 path = "pages/data.py"
 name = "Датасети"
+icon = "📊"
 
 [[pages]]
 path = "pages/exp_page.py"
 name = "Експеримент"
-
+icon = "🔬"
 
 [[pages]]
-path = "pages/testing.py"
-name = "Тестування"
+path = "pages/exp_comparing.py"
+name = "Порівняння"
+icon = "⚖️"
 
 [[pages]]
 path = "pages/docs.py"
 name = "Документація"
+icon = "🗂️"
 
 [[pages]]
 path = "pages/settings.py"
 name = "Налаштування"
+icon = "⚙️"
 

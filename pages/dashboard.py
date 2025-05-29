@@ -44,8 +44,6 @@ def insert_experiment_to_db(name, comment):
     
 def search_experiment(name):
     filtered = db.run_query(f'SELECT * FROM experiments WHERE name LIKE "%{name}%"')
-    # st.write(12)
-    # st.write(filtered)
     return filtered
 
 def edit_experiment(name):
@@ -71,6 +69,7 @@ def delete_experiment(name):
 
 cot = st.container()
 cot.title('Головна')
+st.write("Тут ви можете створити новий експеримент")
 
 @st.dialog('Новий експеримент')
 def add_experiment():
@@ -91,7 +90,6 @@ if(st.button('Додати експеримент')):
 def redirect_to_experiment_page(name_exp, id_exp):
     st.session_state.selected_exp = name_exp
     st.session_state.selected_exp_id = id_exp
-    # st.switch_page('pages/exp_page.py')
 
 if "selected_exp" in st.session_state and st.session_state.selected_exp is not None:
     st.switch_page('pages/exp_page.py')
