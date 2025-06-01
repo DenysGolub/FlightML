@@ -18,11 +18,9 @@ def create_dirs(experiment_name):
 
 def insert_experiment_to_db(name, path_to_file, comment=""):
     created_at = datetime.datetime.now().strftime("%Y-%m-%d")
-    edited_at = created_at
-
     query = """
     INSERT INTO datasets (name, path_to_data, description, data_type, created_at)
-    VALUES (?, ?, ?, ?, ?)
+    VALUES (%s, %s, %s, %s, %s)
     """
     params = (name, path_to_file, comment, "csv", created_at)
     db.run_query_params(query, params)
@@ -52,14 +50,10 @@ if(st.button('Додати датасет')):
     add_experiment()
 
 def search_dataset(name):
-    filtered = db.run_query(f'SELECT * FROM datasets WHERE name LIKE "%{name}%"')
+    filtered = db.run_query(f"SELECT * FROM datasets WHERE name LIKE '%{name}%'")
     return filtered
 
 search_text = st_keyup('Назва датасету')
-
-
-def edit_dataset(name):
-    pass
 
 
 @st.dialog(title='Ви впевнені?', )
@@ -68,7 +62,7 @@ def delete_dataset(name):
     padding1, col1,  col2, padding2 = st.columns([2,1,1,2], vertical_alignment='bottom')
     with col1: 
         if st.button('Так'):
-            query = f'DELETE FROM datasets WHERE name = "{name}"'
+            query = f"DELETE FROM datasets WHERE name = '{name}'"
             shutil.rmtree(f'datasets\\{name}')
             db.run_query(query)
             st.rerun()
@@ -79,8 +73,6 @@ def delete_dataset(name):
 def redirect_to_dataset_page(dataset_id: int, experiment_version_id: int):
     st.session_state["modal_dataset_id"] = dataset_id
     st.session_state["modal_experiment_version_id"] = experiment_version_id
-    
-    
 
 def get_dataset_by_id(dataset_id: int):
     query = f"""
@@ -92,7 +84,6 @@ def get_dataset_by_id(dataset_id: int):
     print(result)
     return result
     
-    
 def show_dataset_modal():
     dataset_id = st.session_state.get("modal_dataset_id")
     if not dataset_id:
@@ -102,9 +93,9 @@ def show_dataset_modal():
     
     with st.container():
 
-        if dataset[0][2].endswith(".csv"):
+        if dataset[0]["path_to_data"].endswith(".csv"):
             try:
-                df = pd.read_csv(dataset[0][2])
+                df = pd.read_csv(dataset[0]["path_to_data"])
                 print(df)
                 st.dataframe(df.head(20))
             except Exception as e:
@@ -118,8 +109,6 @@ def show_dataset_modal():
 def redirect_to_dataset_page(dataset_id: int):
     st.session_state["modal_dataset_id"] = dataset_id
 
-
-
 datasets = search_dataset(search_text)
 max_cols = 5
 current_col = 0
@@ -130,16 +119,14 @@ for i in range(0, len(datasets), max_cols):
     for j, exp in enumerate(datasets[i:i+max_cols]):  
         with row[j]:  
             with st.container(border=True):
-                st.markdown(f"**{exp[1]}**")  # exp[1] = name
-                st.caption(f"{exp[3]}")       # exp[5] = created_at
+                st.markdown(f"**{exp["name"]}**")  # exp[1] = name
+                st.caption(f"{exp["description"]}")       # exp[5] = created_at
 
-                btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])  
+                btn_col1, btn_col2 = st.columns([1, 1])  
                 with btn_col1:
-                    st.button("🔍", key=f"view_{i}_{j}", help='Переглянути', use_container_width=True, on_click=redirect_to_dataset_page, args=[exp[0]])  # exp[0] = id
+                    st.button("🔍", key=f"view_{i}_{j}", help='Переглянути', use_container_width=True, on_click=redirect_to_dataset_page, args=[exp["id"]])  # exp[0] = id
                 with btn_col2:
-                    st.button("🖊️", key=f"edit_{i}_{j}", help="Змінити", use_container_width=True, on_click=edit_dataset, args=[exp[0]])
-                with btn_col3:
-                    st.button("🗑️", key=f"del_{i}_{j}", help="Видалити", on_click=delete_dataset, args=[exp[1]], use_container_width=True)
+                    st.button("🗑️", key=f"del_{i}_{j}", help="Видалити", on_click=delete_dataset, args=[exp["name"]], use_container_width=True)
 
-                if st.session_state.get("modal_dataset_id") == exp[0]:
+                if st.session_state.get("modal_dataset_id") == exp["id"]:
                     show_dataset_modal()

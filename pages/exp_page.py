@@ -25,18 +25,18 @@ if st.button("На головну"):
 
 
 def get_or_create_param_id(name):
-    row = db.run_query_params("SELECT id FROM params WHERE name = ?", (name,))
+    row = db.run_query_params("SELECT id FROM params WHERE name = %s", (name,))
     if row:
-        return row[0][0]
-    db.run_query_params("INSERT INTO params (name) VALUES (?)", (name,))
-    return db.run_query_params("SELECT id FROM params WHERE name = ?", (name,))[0][0]
+        return row[0]["id"]
+    db.run_query_params("INSERT INTO params (name) VALUES (%s)", (name,))
+    return db.run_query_params("SELECT id FROM params WHERE name = %s", (name,))[0]["id"]
 
 def get_or_create_metric_id(name):
-    row = db.run_query_params("SELECT id FROM metrics WHERE name = ?", (name,))
+    row = db.run_query_params("SELECT id FROM metrics WHERE name = %s", (name,))
     if row:
-        return row[0][0]
-    db.run_query_params("INSERT INTO metrics (name) VALUES (?)", (name,))
-    return db.run_query_params("SELECT id FROM metrics WHERE name = ?", (name,))[0][0]
+        return row[0]["id"]
+    db.run_query_params("INSERT INTO metrics (name) VALUES (%s)", (name,))
+    return db.run_query_params("SELECT id FROM metrics WHERE name = %s", (name,))[0]["id"]
 
 
 def remove_items_from_db(removed_param_names: set, removed_metric_names: set, experiment_history_id):
@@ -44,23 +44,23 @@ def remove_items_from_db(removed_param_names: set, removed_metric_names: set, ex
         param_id = get_or_create_param_id(param_name)
         db.run_query_params("""
             DELETE FROM experiment_params
-            WHERE experiment_history_id = ? AND param_id = ?
+            WHERE experiment_history_id = %s AND param_id = %s
         """, (experiment_history_id, param_id))
 
     for metric_name in removed_metric_names:
         metric_id = get_or_create_metric_id(metric_name)
         db.run_query_params("""
             DELETE FROM experiment_metrics
-            WHERE experiment_history_id = ? AND metric_id = ?
+            WHERE experiment_history_id = %s AND metric_id = %s
         """, (experiment_history_id, metric_id))
 
 
 st.title(f"Експеримент: {st.session_state.selected_exp}")
 
 # Версії
-query_versions = '''SELECT experiment_version FROM experiments_history WHERE experiment_id = ?'''
+query_versions = '''SELECT experiment_version FROM experiments_history WHERE experiment_id = %s'''
 results = db.run_query_params(query_versions, (st.session_state.selected_exp_id,))
-versions = [result[0] for result in results]
+versions = [result["experiment_version"] for result in results]
 
 if not versions:
     st.info('У цього експерименту немає версій.')
@@ -78,7 +78,7 @@ with st.container(border=True):
         if version:
             try:
                 db.run_query_params(
-                    '''INSERT INTO experiments_history (experiment_id, experiment_version) VALUES (?, ?)''',
+                    '''INSERT INTO experiments_history (experiment_id, experiment_version) VALUES (%s, %s)''',
                     (st.session_state.selected_exp_id, version)
                 )
                 versions.append(version)
@@ -89,7 +89,7 @@ with st.container(border=True):
 
             except Exception as e:
                 if "UNIQUE constraint failed" in str(e):
-                    st.warning("⚠️ Така версія вже існує в БД. Ім'я версії повинно бути унікальним для всіх експериментів.")
+                    st.warning("⚠️ Ім'я версії не повинно повторюватись в межах експерименту.")
                 else:
                     st.error(f"❌ Помилка: {e}")
         else:
@@ -101,8 +101,8 @@ data, eda, info = st.tabs(['📄 Дані', '🔬 EDA', '⚙️ Конфігур
 # Вибір версії експерименту
 with st.sidebar:
     st.markdown("### 🔢 Вибір версії експерименту")
-    versions = [row[0] for row in db.run_query_params(
-        "SELECT experiment_version FROM experiments_history WHERE experiment_id = ?",
+    versions = [row["experiment_version"] for row in db.run_query_params(
+        "SELECT experiment_version FROM experiments_history WHERE experiment_id = %s",
         (st.session_state.selected_exp_id,)
     )]
     selected_version = st.selectbox("Оберіть версію:", options=versions)
@@ -112,7 +112,7 @@ with data:
     st.subheader("📎 Прив’язка датасету до версії експерименту")
 
     datasets = db.run_query('SELECT id, name FROM datasets')
-    dataset_options = {f"{row[1]} (ID: {row[0]})": row[0] for row in datasets}
+    dataset_options = {f"{row["name"]} (ID: {row["id"]})": row["id"] for row in datasets}
 
     if len(dataset_options) == 0:
         st.error("❌ В базі відсутні датасети.")
@@ -123,12 +123,13 @@ with data:
     FROM experiment_data ed
     JOIN datasets d ON ed.dataset_id = d.id
     JOIN experiments_history eh ON ed.experiment_version_id = eh.id
-    WHERE eh.experiment_id = ? AND eh.experiment_version = ?
+    WHERE eh.experiment_id = %s AND eh.experiment_version = %s
     '''
     result_current = db.run_query_params(query_current, (st.session_state.selected_exp_id, selected_version))
-
+    print(result_current)
     if result_current:
-        name, ds_id = result_current[0]
+        name, ds_id = result_current[0]["name"], result_current[0]["id"]
+        # print(name, ds_id)
         st.markdown(f"🔗 Поточний прив’язаний датасет: **{name}** (ID: {ds_id})")
     else:
         st.info("🔒 Поки що не прив’язано жодного датасету до цієї версії.")
@@ -138,16 +139,16 @@ with data:
     selected_dataset_id = dataset_options[selected_dataset]
 
     if st.button("🔗 Прив'язати датасет"):
-        query = "SELECT id FROM experiments_history WHERE experiment_id = ? AND experiment_version = ?"
+        query = "SELECT id FROM experiments_history WHERE experiment_id = %s AND experiment_version = %s"
         result = db.run_query_params(query, (st.session_state.selected_exp_id, selected_version))
 
         if result:
-            version_id = result[0][0]
+            version_id = result[0]["id"]
             try:
                 db.run_query_params(
                     '''
                     INSERT INTO experiment_data (experiment_version_id, dataset_id)
-                    VALUES (?, ?)
+                    VALUES (%s, %s)
                     ON CONFLICT(experiment_version_id)
                     DO UPDATE SET dataset_id = excluded.dataset_id
                     ''',
@@ -164,14 +165,15 @@ with data:
 with eda:
     st.subheader("📊 Автоматичний аналіз")
     if ds_id is not None:
-        query = '''SELECT path_to_data FROM datasets WHERE id = ?'''
+        query = "SELECT path_to_data FROM datasets WHERE id = %s"
         res = db.run_query_params(query, (ds_id,))
     else:
         res = []
 
     if res:
+        print(res)
         try:
-            df = pd.read_csv(res[0][0])
+            df = pd.read_csv(res[0]["path_to_data"])
             tab1, tab2, tab3, tab4, tab5 = st.tabs(["Info", "Head", "Describe", "Nulls", "Plots"])
 
             with tab1:
@@ -229,31 +231,32 @@ with info:
 
     try:
         experiment_history_id = db.run_query_params(
-            "SELECT id FROM experiments_history WHERE experiment_version = ?", 
+            "SELECT id FROM experiments_history WHERE experiment_version = %s", 
             (selected_version,)
-        )[0][0]
+        )[0]["id"]
     except IndexError:
         st.info("Експеримент повинен мати хоча б одну версію!")
         st.stop()
 
-    possible_params = [row[0] for row in db.run_query("SELECT name FROM params")]
-    possible_metrics = [row[0] for row in db.run_query("SELECT name FROM metrics")]
+    possible_params = [row["name"] for row in db.run_query("SELECT name FROM params")]
+    possible_metrics = [row["name"] for row in db.run_query("SELECT name FROM metrics")]
 
     rows = db.run_query_params("""
         SELECT p.name, ep.param_value
         FROM experiment_params ep
         JOIN params p ON ep.param_id = p.id
-        WHERE ep.experiment_history_id = ?
+        WHERE ep.experiment_history_id = %s
     """, (experiment_history_id,))
-    params_data = {r[0]: r[1] for r in rows}
+    print(rows)
+    params_data = {r["name"]: r["param_value"] for r in rows}
 
     rows = db.run_query_params("""
         SELECT m.name, em.metric_value
         FROM experiment_metrics em
         JOIN metrics m ON em.metric_id = m.id
-        WHERE em.experiment_history_id = ?
+        WHERE em.experiment_history_id = %s
     """, (experiment_history_id,))
-    metric_data = {r[0]: r[1] for r in rows}
+    metric_data = {r["name"]: r["metric_value"] for r in rows}
 
     if "last_experiment_id" not in st.session_state or st.session_state.last_experiment_id != experiment_history_id:
         st.session_state.last_experiment_id = experiment_history_id
@@ -421,17 +424,17 @@ with info:
 
         for name, val in param_values.items():
             pid = get_or_create_param_id(name)
-            if db.run_query_params("SELECT 1 FROM experiment_params WHERE experiment_history_id=? AND param_id=?", (experiment_history_id, pid)):
-                db.run_query_params("UPDATE experiment_params SET param_value=? WHERE experiment_history_id=? AND param_id=?", (val, experiment_history_id, pid))
+            if db.run_query_params("SELECT 1 FROM experiment_params WHERE experiment_history_id=%s AND param_id=%s", (experiment_history_id, pid)):
+                db.run_query_params("UPDATE experiment_params SET param_value=%s WHERE experiment_history_id=%s AND param_id=%s", (val, experiment_history_id, pid))
             else:
-                db.run_query_params("INSERT INTO experiment_params (experiment_history_id,param_id,param_value) VALUES (?,?,?)", (experiment_history_id, pid, val))
+                db.run_query_params("INSERT INTO experiment_params (experiment_history_id,param_id,param_value) VALUES (%s,%s,%s)", (experiment_history_id, pid, val))
 
         for name, val in metric_values.items():
             mid = get_or_create_metric_id(name)
-            if db.run_query_params("SELECT 1 FROM experiment_metrics WHERE experiment_history_id=? AND metric_id=?", (experiment_history_id, mid)):
-                db.run_query_params("UPDATE experiment_metrics SET metric_value=? WHERE experiment_history_id=? AND metric_id=?", (val, experiment_history_id, mid))
+            if db.run_query_params("SELECT 1 FROM experiment_metrics WHERE experiment_history_id=%s AND metric_id=%s", (experiment_history_id, mid)):
+                db.run_query_params("UPDATE experiment_metrics SET metric_value=%s WHERE experiment_history_id=%s AND metric_id=%s", (val, experiment_history_id, mid))
             else:
-                db.run_query_params("INSERT INTO experiment_metrics (experiment_history_id,metric_id,metric_value) VALUES (?,?,?)", (experiment_history_id, mid, val))
+                db.run_query_params("INSERT INTO experiment_metrics (experiment_history_id,metric_id,metric_value) VALUES (%s,%s,%s)", (experiment_history_id, mid, val))
 
         st.success("✅ Збережено!")
         time.sleep(1)
