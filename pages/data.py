@@ -6,8 +6,8 @@ import shutil
 import datetime
 import os
 
-st.title("Датасети")
-
+st.markdown("### 📊 Датасети")
+st.write("Набори даних, що використовуються в експериментах.")
 db = DataBase()
 
 def create_dirs(experiment_name):

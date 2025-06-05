@@ -7,6 +7,7 @@ from helpers.database import DataBase
 import json
 from datetime import datetime
 import plotly.express as px
+import io
 
 
 db = DataBase()
@@ -55,7 +56,7 @@ def remove_items_from_db(removed_param_names: set, removed_metric_names: set, ex
         """, (experiment_history_id, metric_id))
 
 
-st.title(f"Експеримент: {st.session_state.selected_exp}")
+st.markdown(f"### Експеримент: {st.session_state.selected_exp}")
 
 # Версії
 query_versions = '''SELECT experiment_version FROM experiments_history WHERE experiment_id = %s'''
@@ -174,11 +175,14 @@ with eda:
         print(res)
         try:
             df = pd.read_csv(res[0]["path_to_data"])
-            tab1, tab2, tab3, tab4, tab5 = st.tabs(["Info", "Head", "Describe", "Nulls", "Plots"])
+            tab1, tab2, tab3, tab4, tab5 = st.tabs(["Загальна інформація", "Перші рядки", "Описова статистика", "Пропуски", "Графіки"])
 
             with tab1:
-                st.text(df.info())
+                buffer = io.StringIO()
+                df.info(buf=buffer)
+                s = buffer.getvalue()
 
+                st.text(s)
             with tab2:
                 st.dataframe(df.head(), use_container_width=True)
 

@@ -18,13 +18,5 @@ path = "pages/exp_comparing.py"
 name = "Порівняння"
 icon = "⚖️"
 
-[[pages]]
-path = "pages/docs.py"
-name = "Документація"
-icon = "🗂️"
 
-[[pages]]
-path = "pages/settings.py"
-name = "Налаштування"
-icon = "⚙️"
 
